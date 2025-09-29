@@ -11,4 +11,12 @@ namespace Trello_API.ViewModel
         public string AvatarUrl { get; set; }
         public DateTime? BirthDate { get; set; } 
     }
+    public class UserDto
+    {
+        public string Email { get; set; }
+        public string FullName { get; set; }
+        public string Phone { get; set; }
+        public DateTime? BirthDate { get; set; } 
+        public string AvatarUrl { get; set; }
+    }
 }

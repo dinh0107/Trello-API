@@ -17,7 +17,7 @@ namespace Trello_API.Models
 
         public DateTime? BirthDate { get; set; }
         public DateTime Creatdate { get; set; } = DateTime.UtcNow;
-        public DateTime RefreshTokenExpiry { get; set; } = DateTime.UtcNow;
+        public DateTime? RefreshTokenExpiry { get; set; } 
         public ICollection<Board> Boards { get; set; }
         public virtual ICollection<BoardUser> BoardUsers { get; set; }
     }

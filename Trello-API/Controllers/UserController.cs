@@ -16,26 +16,26 @@ namespace Trello_API.Controllers
     {
         private readonly UnitOfWork _unitOfWork = new UnitOfWork();
 
-
         [HttpGet]
+        [Authorize]
         [Route("me")]
         public IHttpActionResult GetCurrentUser()
         {
             var identity = (ClaimsIdentity)User.Identity;
-            var userName = identity.Name; 
-            var userId = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var fullName = identity.FindFirst("fullName")?.Value;
-            var phone = identity.FindFirst("phone")?.Value;
-            var avatarUrl = identity.FindFirst("avatarUrl")?.Value;
-
-            return Ok(new
+            var user  = _unitOfWork.UserRepository.GetQuery(u => u.Email == identity.Name).FirstOrDefault();
+            if (user == null)
             {
-                UserId = userId,
-                Username = userName,
-                FullName = fullName,
-                Phone = phone,
-                AvatarUrl = avatarUrl
-            });
+                return NotFound();
+            }
+            var UserInfo = new UserDto
+            {
+                Email = user.Email,
+                FullName = user.FullName,
+                Phone = user.Phone,
+                BirthDate = user.BirthDate,
+                AvatarUrl = user.AvatarUrl,
+            };
+            return Ok(UserInfo);
         }
         [HttpPut]
         [Route("update-info")]

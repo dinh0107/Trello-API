@@ -7,6 +7,7 @@ using System.Data.Entity.Infrastructure;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Web;
 using System.Web.Helpers;
 using System.Web.Http;
 using System.Web.Http.Description;
@@ -17,11 +18,13 @@ using Trello_API.ViewModel;
 
 namespace Trello_API.Controllers
 {
+    [Authorize]
     [RoutePrefix("api/auth")]
     public class AuthController : ApiController
     {
         private readonly UnitOfWork _unitOfWork = new UnitOfWork();
 
+        [AllowAnonymous]
         [HttpPost]
         [Route("login")]
         public IHttpActionResult Login([FromBody] LoginRequest request)
@@ -36,41 +39,42 @@ namespace Trello_API.Controllers
             }
 
             var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == request.Email).FirstOrDefault();
-
             if (user == null)
             {
-                return Content(HttpStatusCode.NotFound, new
-                {
-                    Success = false,
-                    Message = "Tài khoản không tồn tại"
-                });
+                return Content(HttpStatusCode.NotFound, new { Success = false, Message = "Tài khoản không tồn tại" });
             }
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                return Content(HttpStatusCode.Unauthorized, new
-                {
-                    Success = false,
-                    Message = "Mật khẩu không chính xác"
-                });
+                return Content(HttpStatusCode.Unauthorized, new { Success = false, Message = "Mật khẩu không chính xác" });
             }
-            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 15);
 
+            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 15);
             var refreshToken = Guid.NewGuid().ToString();
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
             _unitOfWork.Save();
 
+            var cookie = new HttpCookie("AccessToken", accessToken)
+            {
+                HttpOnly = true,
+                Secure = true, 
+                SameSite = SameSiteMode.None
+            };
+            HttpContext.Current.Response.Cookies.Add(cookie);
+
             return Ok(new
             {
                 Success = true,
                 Message = "Đăng nhập thành công",
-                AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 User = new { user.Id, user.Email }
             });
         }
 
+
+
+        [AllowAnonymous]
         [HttpPost]
         [Route("refresh")]
         public IHttpActionResult Refresh([FromBody] RefreshRequest request)
@@ -109,16 +113,24 @@ namespace Trello_API.Controllers
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
             _unitOfWork.Save();
+            var cookie = new HttpCookie("AccessToken", newAccessToken)
+            {
+                HttpOnly = true,
+                Secure = true, 
+                SameSite = SameSiteMode.None
+            };
+            HttpContext.Current.Response.Cookies.Add(cookie);
 
             return Ok(new
             {
                 Success = true,
                 Message = "Cấp mới AccessToken thành công",
-                AccessToken = newAccessToken,
                 RefreshToken = newRefreshToken
             });
         }
 
+
+        [AllowAnonymous]
         [HttpPost]
         [Route("register")]
         public IHttpActionResult Register([FromBody] RegisterRequest request)
@@ -147,7 +159,7 @@ namespace Trello_API.Controllers
             var newUser = new User
             {
                 FullName = request.FullName,
-                Phone =  request.Phone,
+                Phone = request.Phone,
                 AvatarUrl = "",
                 Email = request.Email,
                 PasswordHash = passwordHash
@@ -155,28 +167,73 @@ namespace Trello_API.Controllers
 
             var accessToken = JwtHelper.GenerateJwtToken(newUser.Email, 120); 
             var refreshToken = Guid.NewGuid().ToString();
-
             newUser.RefreshToken = refreshToken;
             newUser.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
 
             _unitOfWork.UserRepository.Insert(newUser);
             _unitOfWork.Save();
 
+            var cookie = new HttpCookie("AccessToken", accessToken)
+            {
+                HttpOnly = true,
+                Secure = true, 
+                SameSite = SameSiteMode.None
+            };
+            HttpContext.Current.Response.Cookies.Add(cookie);
+
             return Ok(new
             {
                 Success = true,
                 Message = "Đăng ký thành công, bạn đã được đăng nhập",
-                AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 User = new { newUser.Id, newUser.Email }
             });
         }
-        
+
+
+
+        [AllowAnonymous]
         [HttpGet]
         [Route("check-auth")]
         public IHttpActionResult CheckAuth()
         {
-            return Ok(new { isAuthenticated = true });
+            if (User.Identity.IsAuthenticated)
+            {
+                return Ok(new { isAuthenticated = true });
+            }
+            return Ok(new { isAuthenticated = false });
         }
+        [Authorize]
+        [HttpPost]
+        [Route("logout")]
+        public IHttpActionResult Logout()
+        {
+            var email = User.Identity.Name;
+            var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == email).FirstOrDefault();
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            user.RefreshToken = null;
+            user.RefreshTokenExpiry = DateTime.MinValue;
+            _unitOfWork.Save();
+
+            var cookie = new HttpCookie("AccessToken", "")
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(-1) 
+            };
+            HttpContext.Current.Response.Cookies.Add(cookie);
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Đăng xuất thành công"
+            });
+        }
+
     }
 }
