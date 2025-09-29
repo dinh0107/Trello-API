@@ -11,7 +11,7 @@ namespace Trello_API.Models
         public string FullName { get; set; }
         public string Phone { get; set; }
         public string AvatarUrl { get; set; }
-        public string Username { get; set; }
+        public string Email { get; set; }
         public string PasswordHash { get; set; }
         public string RefreshToken { get; set; }
 

@@ -280,6 +280,10 @@
     <Compile Include="Migrations\202509250926186_add.Designer.cs">
       <DependentUpon>202509250926186_add.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202509260702567_change-user.cs" />
+    <Compile Include="Migrations\202509260702567_change-user.Designer.cs">
+      <DependentUpon>202509260702567_change-user.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Board.cs" />
     <Compile Include="Models\Card.cs" />
@@ -459,6 +463,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202509250926186_add.resx">
       <DependentUpon>202509250926186_add.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202509260702567_change-user.resx">
+      <DependentUpon>202509260702567_change-user.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

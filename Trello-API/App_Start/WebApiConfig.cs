@@ -11,7 +11,8 @@ namespace Trello_API
         public static void Register(HttpConfiguration config)
         {
             // Web API configuration and services
-            var cors = new EnableCorsAttribute("*", "*", "*");
+            var cors = new EnableCorsAttribute("http://localhost:4200", "*", "*");
+            cors.SupportsCredentials = true;
             config.EnableCors(cors);
             // Web API routes
             config.MapHttpAttributeRoutes();

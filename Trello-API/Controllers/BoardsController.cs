@@ -136,7 +136,7 @@ namespace Trello_API.Controllers
         {
             var members = _unitOfWork.BoardUserRepository
                 .GetQuery(bu => bu.BoardId == boardId)
-                .Select(bu => new { bu.UserId, bu.User.Username, bu.IsOwner })
+                .Select(bu => new { bu.UserId, bu.User.Email, bu.IsOwner })
                 .ToList();
 
             return Ok(members);

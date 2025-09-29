@@ -26,7 +26,7 @@ namespace Trello_API.Controllers
         [Route("login")]
         public IHttpActionResult Login([FromBody] LoginRequest request)
         {
-            if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
                 return Content(HttpStatusCode.BadRequest, new
                 {
@@ -35,7 +35,7 @@ namespace Trello_API.Controllers
                 });
             }
 
-            var user = _unitOfWork.UserRepository.GetQuery(u => u.Username == request.Username).FirstOrDefault();
+            var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == request.Email).FirstOrDefault();
 
             if (user == null)
             {
@@ -54,7 +54,7 @@ namespace Trello_API.Controllers
                     Message = "Mật khẩu không chính xác"
                 });
             }
-            var accessToken = JwtHelper.GenerateJwtToken(user.Username, 15);
+            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 15);
 
             var refreshToken = Guid.NewGuid().ToString();
             user.RefreshToken = refreshToken;
@@ -67,7 +67,7 @@ namespace Trello_API.Controllers
                 Message = "Đăng nhập thành công",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                User = new { user.Id, user.Username }
+                User = new { user.Id, user.Email }
             });
         }
 
@@ -103,7 +103,7 @@ namespace Trello_API.Controllers
                 });
             }
 
-            var newAccessToken = JwtHelper.GenerateJwtToken(user.Username, 120);
+            var newAccessToken = JwtHelper.GenerateJwtToken(user.Email, 120);
             var newRefreshToken = Guid.NewGuid().ToString();
 
             user.RefreshToken = newRefreshToken;
@@ -123,7 +123,7 @@ namespace Trello_API.Controllers
         [Route("register")]
         public IHttpActionResult Register([FromBody] RegisterRequest request)
         {
-            if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
+            if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
             {
                 return Content(HttpStatusCode.BadRequest, new
                 {
@@ -132,7 +132,7 @@ namespace Trello_API.Controllers
                 });
             }
 
-            var exists = _unitOfWork.UserRepository.GetQuery(u => u.Username == request.Username).FirstOrDefault();
+            var exists = _unitOfWork.UserRepository.GetQuery(u => u.Email == request.Email).FirstOrDefault();
             if (exists != null)
             {
                 return Content(HttpStatusCode.Conflict, new
@@ -149,11 +149,11 @@ namespace Trello_API.Controllers
                 FullName = request.FullName,
                 Phone =  request.Phone,
                 AvatarUrl = "",
-                Username = request.Username,
+                Email = request.Email,
                 PasswordHash = passwordHash
             };
 
-            var accessToken = JwtHelper.GenerateJwtToken(newUser.Username, 120); 
+            var accessToken = JwtHelper.GenerateJwtToken(newUser.Email, 120); 
             var refreshToken = Guid.NewGuid().ToString();
 
             newUser.RefreshToken = refreshToken;
@@ -168,10 +168,15 @@ namespace Trello_API.Controllers
                 Message = "Đăng ký thành công, bạn đã được đăng nhập",
                 AccessToken = accessToken,
                 RefreshToken = refreshToken,
-                User = new { newUser.Id, newUser.Username }
+                User = new { newUser.Id, newUser.Email }
             });
         }
-
-
+        
+        [HttpGet]
+        [Route("check-auth")]
+        public IHttpActionResult CheckAuth()
+        {
+            return Ok(new { isAuthenticated = true });
+        }
     }
 }

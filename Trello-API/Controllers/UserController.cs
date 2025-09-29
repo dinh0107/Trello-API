@@ -78,7 +78,7 @@ namespace Trello_API.Controllers
                 User = new
                 {
                     user.Id,
-                    user.Username,
+                    user.Email,
                     user.FullName,
                     user.AvatarUrl,
                     BirthDate = user.Creatdate 
