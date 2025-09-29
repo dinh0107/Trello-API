@@ -49,7 +49,7 @@ namespace Trello_API.Controllers
                 return Content(HttpStatusCode.Unauthorized, new { Success = false, Message = "Mật khẩu không chính xác" });
             }
 
-            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 15);
+            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 120);
             var refreshToken = Guid.NewGuid().ToString();
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
@@ -216,7 +216,7 @@ namespace Trello_API.Controllers
             }
 
             user.RefreshToken = null;
-            user.RefreshTokenExpiry = DateTime.MinValue;
+            user.RefreshTokenExpiry = null;
             _unitOfWork.Save();
 
             var cookie = new HttpCookie("AccessToken", "")

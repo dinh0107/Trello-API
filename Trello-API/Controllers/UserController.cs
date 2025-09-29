@@ -1,9 +1,12 @@
-﻿using System;
+﻿using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using System.Web.Http;
 using Trello_API.DAL;
 using Trello_API.ViewModel;
@@ -38,35 +41,49 @@ namespace Trello_API.Controllers
             return Ok(UserInfo);
         }
         [HttpPut]
+        [Authorize]
         [Route("update-info")]
-        public IHttpActionResult UpdateCurrentUser([FromBody] UpdateUserRequest request)
+        public async Task<IHttpActionResult> UpdateCurrentUser()
         {
-            if (request == null)
-            {
-                return BadRequest("Dữ liệu không hợp lệ");
-            }
-
             var identity = (ClaimsIdentity)User.Identity;
             var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized();
-
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
             int userId = int.Parse(userIdClaim);
 
             var user = _unitOfWork.UserRepository.GetQuery(u => u.Id == userId).FirstOrDefault();
-            if (user == null)
+            if (user == null) return NotFound();
+
+            var provider = await Request.Content.ReadAsMultipartAsync();
+            var fileContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "avatar");
+            var fullNameContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "fullName");
+            var birthDateContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "birthDate");
+
+            if (fullNameContent != null)
             {
-                return NotFound();
+                var fullName = await fullNameContent.ReadAsStringAsync();
+                if (!string.IsNullOrEmpty(fullName)) user.FullName = fullName;
+            }
+            if (birthDateContent != null)
+            {
+                var birthDateStr = await birthDateContent.ReadAsStringAsync();
+                if (DateTime.TryParse(birthDateStr, out var bd)) user.Creatdate = bd;
             }
 
-            if (!string.IsNullOrEmpty(request.FullName))
-                user.FullName = request.FullName;
+            if (fileContent != null)
+            {
+                var stream = await fileContent.ReadAsStreamAsync();
 
-            if (!string.IsNullOrEmpty(request.AvatarUrl))
-                user.AvatarUrl = request.AvatarUrl;
+                var account = new Account("dzrs9sv2n", "878186467936665", "ib72xVK9wDddH4FDp1o_UGdhZMI");
+                var cloudinary = new Cloudinary(account);
 
-            if (request.BirthDate.HasValue)
-                user.Creatdate = request.BirthDate.Value;
+                var uploadParams = new ImageUploadParams()
+                {
+                    File = new FileDescription("avatar", stream)
+                };
+                var uploadResult = cloudinary.Upload(uploadParams);
+
+                user.AvatarUrl = uploadResult.SecureUrl.ToString();
+            }
 
             _unitOfWork.UserRepository.Update(user);
             _unitOfWork.Save();
@@ -81,9 +98,10 @@ namespace Trello_API.Controllers
                     user.Email,
                     user.FullName,
                     user.AvatarUrl,
-                    BirthDate = user.Creatdate 
+                    BirthDate = user.Creatdate
                 }
             });
         }
+
     }
 }
