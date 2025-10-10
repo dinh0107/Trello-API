@@ -17,6 +17,19 @@ namespace Trello_API
         {
             var key = Encoding.ASCII.GetBytes("1f885887384444974576db63a778d063eb9e65937f4b0d02");
 
+            app.Use(async (context, next) =>
+            {
+                if (!context.Request.Headers.ContainsKey("Authorization"))
+                {
+                    var cookieToken = context.Request.Cookies["AccessToken"];
+                    if (!string.IsNullOrEmpty(cookieToken))
+                    {
+                        context.Request.Headers.Append("Authorization", "Bearer " + cookieToken);
+                    }
+                }
+                await next.Invoke();
+            });
+
             app.UseJwtBearerAuthentication(new JwtBearerAuthenticationOptions
             {
                 AuthenticationMode = Microsoft.Owin.Security.AuthenticationMode.Active,
@@ -30,5 +43,6 @@ namespace Trello_API
                 }
             });
         }
+
     }
 }

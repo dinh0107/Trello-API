@@ -336,6 +336,10 @@
     <Compile Include="Migrations\202509290500089_add-nul.Designer.cs">
       <DependentUpon>202509290500089_add-nul.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202510010708020_AddBackgroundImageToBoard.cs" />
+    <Compile Include="Migrations\202510010708020_AddBackgroundImageToBoard.Designer.cs">
+      <DependentUpon>202510010708020_AddBackgroundImageToBoard.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Board.cs" />
     <Compile Include="Models\Card.cs" />
@@ -482,6 +486,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202509290500089_add-nul.resx">
       <DependentUpon>202509290500089_add-nul.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202510010708020_AddBackgroundImageToBoard.resx">
+      <DependentUpon>202510010708020_AddBackgroundImageToBoard.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

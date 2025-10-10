@@ -30,7 +30,7 @@ namespace Trello_API.ViewModel
     public class CreateBoardRequest
     {
         public string Name { get; set; }
-        public string Description { get; set; }
+        public string BackgroundImage { get; set; }
     }
     public class CreateListRequest
     {

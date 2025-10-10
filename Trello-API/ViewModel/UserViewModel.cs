@@ -19,4 +19,12 @@ namespace Trello_API.ViewModel
         public DateTime? BirthDate { get; set; } 
         public string AvatarUrl { get; set; }
     }
+
+    public class BoardDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string BackgroundImage { get; set; }
+    }
+
 }

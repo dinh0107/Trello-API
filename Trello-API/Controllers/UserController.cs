@@ -41,32 +41,35 @@ namespace Trello_API.Controllers
             return Ok(UserInfo);
         }
         [HttpPut]
-        [Authorize]
         [Route("update-info")]
         public async Task<IHttpActionResult> UpdateCurrentUser()
         {
             var identity = (ClaimsIdentity)User.Identity;
-            var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
-            int userId = int.Parse(userIdClaim);
-
-            var user = _unitOfWork.UserRepository.GetQuery(u => u.Id == userId).FirstOrDefault();
+            var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == identity.Name).FirstOrDefault();
             if (user == null) return NotFound();
 
             var provider = await Request.Content.ReadAsMultipartAsync();
             var fileContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "avatar");
-            var fullNameContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "fullName");
-            var birthDateContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "birthDate");
+            var fullNameContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "FullName"); // ✅ viết hoa giống FE
+            var birthDateContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "BirthDate"); // ✅ viết hoa giống FE
+            var phoneContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "Phone"); // nếu FE gửi phone
 
             if (fullNameContent != null)
             {
                 var fullName = await fullNameContent.ReadAsStringAsync();
                 if (!string.IsNullOrEmpty(fullName)) user.FullName = fullName;
             }
+
+            if (phoneContent != null)
+            {
+                var phone = await phoneContent.ReadAsStringAsync();
+                if (!string.IsNullOrEmpty(phone)) user.Phone = phone;
+            }
+
             if (birthDateContent != null)
             {
                 var birthDateStr = await birthDateContent.ReadAsStringAsync();
-                if (DateTime.TryParse(birthDateStr, out var bd)) user.Creatdate = bd;
+                if (DateTime.TryParse(birthDateStr, out var bd)) user.BirthDate = bd; 
             }
 
             if (fileContent != null)
@@ -98,10 +101,12 @@ namespace Trello_API.Controllers
                     user.Email,
                     user.FullName,
                     user.AvatarUrl,
-                    BirthDate = user.Creatdate
+                    user.Phone,
+                    user.BirthDate 
                 }
             });
         }
+
 
     }
 }
