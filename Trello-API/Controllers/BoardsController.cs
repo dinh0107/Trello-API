@@ -246,6 +246,64 @@ namespace Trello_API.Controllers
 
             return Ok(members);
         }
+        [HttpPost, Route("add-user")]
+        public IHttpActionResult AddUserToBoard([FromBody] AddUserToBoardRequest request)
+        {
+            if (request == null)
+                return BadRequest("Dữ liệu không hợp lệ");
+
+            var identity = (ClaimsIdentity)User.Identity;
+            var currentUser = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (currentUser == null)
+                return Unauthorized();
+
+            var board = _unitOfWork.BoardRepository.GetById(request.BoardId);
+            if (board == null)
+                return BadRequest("Không tìm thấy board.");
+
+            var user = _unitOfWork.UserRepository.GetById(request.UserId);
+            if (user == null)
+                return BadRequest("Không tìm thấy user.");
+
+            var existing = _unitOfWork.BoardUserRepository
+                .GetQuery(bu => bu.BoardId == request.BoardId && bu.UserId == request.UserId)
+                .FirstOrDefault();
+
+            if (existing != null)
+                return BadRequest("User này đã có trong board.");
+
+            var boardUser = new BoardUser
+            {
+                BoardId = request.BoardId,
+                UserId = request.UserId,
+                IsOwner = request.IsOwner
+            };
+
+            _unitOfWork.BoardUserRepository.Insert(boardUser);
+            _unitOfWork.Save();
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Thêm user vào board thành công",
+                Member = new
+                {
+                    boardUser.Id,
+                    boardUser.BoardId,
+                    boardUser.UserId,
+                    boardUser.IsOwner,
+                    User = new
+                    {
+                        user.Id,
+                        user.FullName,
+                        user.Email
+                    }
+                }
+            });
+        }
 
     }
 }

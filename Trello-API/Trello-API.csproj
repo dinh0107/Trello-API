@@ -340,6 +340,18 @@
     <Compile Include="Migrations\202510010708020_AddBackgroundImageToBoard.Designer.cs">
       <DependentUpon>202510010708020_AddBackgroundImageToBoard.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202510161011142_change-card.cs" />
+    <Compile Include="Migrations\202510161011142_change-card.Designer.cs">
+      <DependentUpon>202510161011142_change-card.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202510161041392_add-usser.cs" />
+    <Compile Include="Migrations\202510161041392_add-usser.Designer.cs">
+      <DependentUpon>202510161041392_add-usser.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202510211621041_fix-card.cs" />
+    <Compile Include="Migrations\202510211621041_fix-card.Designer.cs">
+      <DependentUpon>202510211621041_fix-card.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Board.cs" />
     <Compile Include="Models\Card.cs" />
@@ -489,6 +501,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202510010708020_AddBackgroundImageToBoard.resx">
       <DependentUpon>202510010708020_AddBackgroundImageToBoard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202510161011142_change-card.resx">
+      <DependentUpon>202510161011142_change-card.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202510161041392_add-usser.resx">
+      <DependentUpon>202510161041392_add-usser.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202510211621041_fix-card.resx">
+      <DependentUpon>202510211621041_fix-card.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

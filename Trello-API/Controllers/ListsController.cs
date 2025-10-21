@@ -19,19 +19,25 @@ namespace Trello_API.Controllers
 
 
         [HttpGet, Route("my")]
-        public IHttpActionResult GetMyLists()
+        public IHttpActionResult GetMyLists(int boadId)
         {
             var identity = (ClaimsIdentity)User.Identity;
-            var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized();
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
 
-            int userId = int.Parse(userIdClaim);
+            if (user == null) return Unauthorized();
 
-            var lists = _unitOfWork.ListRepository
-             .GetQuery(l => l.Board.BoardUsers.Any(bu => bu.UserId == userId))
-             .OrderBy(l => l.Sort)
-             .ToList();
+            int userId = user.Id;
+
+            var lists = _unitOfWork.ListRepository.GetQuery(a => a.BoardId == boadId, o => o.OrderBy(a => a.Sort)).Select(a => new
+            {
+                a.Id,
+                a.Title,
+                a.Sort,
+                a.Cards,
+            })
+        .ToList(); ;
             return Ok(lists);
         }
 
@@ -42,10 +48,13 @@ namespace Trello_API.Controllers
                 return BadRequest("Dữ liệu không hợp lệ");
 
             var identity = (ClaimsIdentity)User.Identity;
-            var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized();
-            int userId = int.Parse(userIdClaim);
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
 
             var board = _unitOfWork.BoardRepository.GetById(request.BoardId);
             if (board == null)
@@ -83,12 +92,14 @@ namespace Trello_API.Controllers
         public IHttpActionResult GetListsByBoard(int boardId)
         {
             var identity = (ClaimsIdentity)User.Identity;
-            var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized();
-            int userId = int.Parse(userIdClaim);
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
 
-          
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
+
             var lists = _unitOfWork.ListRepository
                 .GetQuery(l => l.BoardId == boardId)
                 .OrderBy(l => l.Sort)
@@ -108,31 +119,63 @@ namespace Trello_API.Controllers
             if (request == null) return BadRequest("Dữ liệu không hợp lệ");
 
             var identity = (ClaimsIdentity)User.Identity;
-            var userIdClaim = identity.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim))
-                return Unauthorized();
-            int userId = int.Parse(userIdClaim);
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
 
             var list = _unitOfWork.ListRepository.GetById(request.ListId);
             if (list == null) return NotFound();
 
-            
-            list.Sort = request.NewSort;
+            var targetList = _unitOfWork.ListRepository.GetById(request.TargetListId);
+            if (targetList == null) return BadRequest("Không tìm thấy list đích");
+
+            var tempSort = list.Sort;
+            list.Sort = targetList.Sort;
+            targetList.Sort = tempSort;
 
             _unitOfWork.ListRepository.Update(list);
+            _unitOfWork.ListRepository.Update(targetList);
             _unitOfWork.Save();
 
             return Ok(new
             {
                 Success = true,
-                Message = "Cập nhật vị trí list thành công",
-                List = new
+                Message = "Hoán đổi vị trí list thành công",
+                Lists = new[]
                 {
-                    list.Id,
-                    list.Title,
-                    list.Sort,
-                    list.BoardId
-                }
+            new { list.Id, list.Title, list.Sort, list.BoardId },
+            new { targetList.Id, targetList.Title, targetList.Sort, targetList.BoardId }
+        }
+            });
+        }
+
+        [HttpPut, Route("change-title")]
+        public IHttpActionResult ChangeTitle([FromBody] ChangeTitleRequest request)
+        {
+            if (request == null) return BadRequest("Dữ liệu không hợp lệ");
+
+            var identity = (ClaimsIdentity)User.Identity;
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
+
+            var list = _unitOfWork.ListRepository.GetById(request.Id);
+            if (list == null) return NotFound();
+
+            list.Title = request.Title;
+            _unitOfWork.Save();
+            return Ok(new
+            {
+                Success = true,
+                Message = "Cập nhật thành công",
             });
         }
     }

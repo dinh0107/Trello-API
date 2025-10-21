@@ -15,17 +15,20 @@ namespace Trello_API.ViewModel
     {
         public int ListId { get; set; }
         public int NewSort { get; set; }
-        public int BoardId { get; set; } 
+        public int TargetListId { get; set; }
     }
+
+
+    public class ChangeTitleRequest
+    {
+        public string Title { get; set; }
+        public int Id { get; set; }
+    }
+
     public class CreateCardRequest
     {
         public string Title { get; set; }
-        public string Description { get; set; }
         public int ListId { get; set; }
-        public int? CardStatusId { get; set; }
-        public int? AssigneeId { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
     }
     public class CreateBoardRequest
     {
@@ -37,4 +40,28 @@ namespace Trello_API.ViewModel
         public string Title { get; set; }
         public int BoardId { get; set; }
     }
+    public class MoveCardRequestModel
+    {
+        public int CardId { get; set; }
+        public int TargetListId { get; set; }
+        public int NewSort { get; set; }
+    }
+    public class CreateCardStatusRequest
+    {
+        public string Name { get; set; }
+        public string Color { get; set; }
+        public int CardId { get; set; }
+    }
+    public class AddUserToCardRequest
+    {
+        public int CardId { get; set; }
+        public int UserId { get; set; }
+    }
+    public class AddUserToBoardRequest
+    {
+        public int BoardId { get; set; }
+        public int UserId { get; set; }
+        public bool IsOwner { get; set; } = false;
+    }
+
 }
