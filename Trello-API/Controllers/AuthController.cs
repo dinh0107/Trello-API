@@ -25,31 +25,20 @@ namespace Trello_API.Controllers
         private readonly UnitOfWork _unitOfWork = new UnitOfWork();
 
         [AllowAnonymous]
-        [HttpPost]
-        [Route("login")]
+        [HttpPost, Route("login")]
         public IHttpActionResult Login([FromBody] LoginRequest request)
         {
             if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
-            {
-                return Content(HttpStatusCode.BadRequest, new
-                {
-                    Success = false,
-                    Message = "Vui lòng nhập đầy đủ Username và Password"
-                });
-            }
+                return Content(HttpStatusCode.BadRequest, new { Success = false, Message = "Vui lòng nhập đầy đủ Email và Mật khẩu" });
 
             var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == request.Email).FirstOrDefault();
             if (user == null)
-            {
                 return Content(HttpStatusCode.NotFound, new { Success = false, Message = "Tài khoản không tồn tại" });
-            }
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            {
                 return Content(HttpStatusCode.Unauthorized, new { Success = false, Message = "Mật khẩu không chính xác" });
-            }
 
-            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 120);
+            var accessToken = JwtHelper.GenerateJwtToken(user.Email, 120); // 2 giờ
             var refreshToken = Guid.NewGuid().ToString();
             user.RefreshToken = refreshToken;
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
@@ -58,8 +47,9 @@ namespace Trello_API.Controllers
             var cookie = new HttpCookie("AccessToken", accessToken)
             {
                 HttpOnly = true,
-                Secure = true, 
-                SameSite = SameSiteMode.None
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddMinutes(120)
             };
             HttpContext.Current.Response.Cookies.Add(cookie);
 
@@ -73,39 +63,19 @@ namespace Trello_API.Controllers
         }
 
 
-
         [AllowAnonymous]
-        [HttpPost]
-        [Route("refresh")]
+        [HttpPost, Route("refresh")]
         public IHttpActionResult Refresh([FromBody] RefreshRequest request)
         {
             if (string.IsNullOrEmpty(request.RefreshToken))
-            {
-                return Content(HttpStatusCode.BadRequest, new
-                {
-                    Success = false,
-                    Message = "Refresh token không được để trống"
-                });
-            }
+                return Content(HttpStatusCode.BadRequest, new { Success = false, Message = "Refresh token không được để trống" });
 
             var user = _unitOfWork.UserRepository.GetQuery(u => u.RefreshToken == request.RefreshToken).FirstOrDefault();
             if (user == null)
-            {
-                return Content(HttpStatusCode.NotFound, new
-                {
-                    Success = false,
-                    Message = "Refresh token không hợp lệ"
-                });
-            }
+                return Content(HttpStatusCode.NotFound, new { Success = false, Message = "Refresh token không hợp lệ" });
 
             if (user.RefreshTokenExpiry < DateTime.UtcNow)
-            {
-                return Content(HttpStatusCode.Unauthorized, new
-                {
-                    Success = false,
-                    Message = "Refresh token đã hết hạn, vui lòng đăng nhập lại"
-                });
-            }
+                return Content(HttpStatusCode.Unauthorized, new { Success = false, Message = "Refresh token đã hết hạn" });
 
             var newAccessToken = JwtHelper.GenerateJwtToken(user.Email, 120);
             var newRefreshToken = Guid.NewGuid().ToString();
@@ -113,11 +83,13 @@ namespace Trello_API.Controllers
             user.RefreshToken = newRefreshToken;
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
             _unitOfWork.Save();
+
             var cookie = new HttpCookie("AccessToken", newAccessToken)
             {
                 HttpOnly = true,
-                Secure = true, 
-                SameSite = SameSiteMode.None
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTime.UtcNow.AddMinutes(120)
             };
             HttpContext.Current.Response.Cookies.Add(cookie);
 
@@ -128,6 +100,7 @@ namespace Trello_API.Controllers
                 RefreshToken = newRefreshToken
             });
         }
+
 
 
         [AllowAnonymous]
@@ -197,23 +170,26 @@ namespace Trello_API.Controllers
         [Route("check-auth")]
         public IHttpActionResult CheckAuth()
         {
-            if (User.Identity.IsAuthenticated)
-            {
-                return Ok(new { isAuthenticated = true });
-            }
-            return Ok(new { isAuthenticated = false });
+            var tokenCookie = HttpContext.Current.Request.Cookies["AccessToken"];
+            if (tokenCookie == null)
+                return Ok(new { isAuthenticated = false });
+
+            var principal = JwtHelper.ValidateToken(tokenCookie.Value);
+            return Ok(new { isAuthenticated = principal != null });
         }
+
         [Authorize]
         [HttpPost]
         [Route("logout")]
         public IHttpActionResult Logout()
         {
             var email = User.Identity.Name;
-            var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == email).FirstOrDefault();
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == email)
+                .FirstOrDefault();
+
             if (user == null)
-            {
                 return NotFound();
-            }
 
             user.RefreshToken = null;
             user.RefreshTokenExpiry = null;
@@ -222,10 +198,15 @@ namespace Trello_API.Controllers
             var cookie = new HttpCookie("AccessToken", "")
             {
                 HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = DateTime.UtcNow.AddDays(-1) 
+
+                Secure = HttpContext.Current.Request.IsSecureConnection,
+                SameSite = HttpContext.Current.Request.IsSecureConnection
+                    ? SameSiteMode.None 
+                    : SameSiteMode.Lax, 
+
+                Expires = DateTime.UtcNow.AddDays(-1)
             };
+
             HttpContext.Current.Response.Cookies.Add(cookie);
 
             return Ok(new
@@ -234,6 +215,7 @@ namespace Trello_API.Controllers
                 Message = "Đăng xuất thành công"
             });
         }
+
 
     }
 }

@@ -30,6 +30,15 @@ namespace Trello_API.ViewModel
         public string Title { get; set; }
         public int ListId { get; set; }
     }
+
+    public class CardDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public int Sort { get; set; }
+        public int ListId { get; set; }
+
+    }
     public class CreateBoardRequest
     {
         public string Name { get; set; }
@@ -60,7 +69,7 @@ namespace Trello_API.ViewModel
     public class AddUserToBoardRequest
     {
         public int BoardId { get; set; }
-        public int UserId { get; set; }
+        public List<int> UserIds { get; set; }
         public bool IsOwner { get; set; } = false;
     }
 

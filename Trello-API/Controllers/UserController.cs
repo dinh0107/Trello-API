@@ -2,11 +2,13 @@
 using CloudinaryDotNet.Actions;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using Trello_API.DAL;
 using Trello_API.ViewModel;
@@ -40,52 +42,62 @@ namespace Trello_API.Controllers
             };
             return Ok(UserInfo);
         }
-        [HttpPut]
+
+        [HttpPost]
         [Route("update-info")]
         public async Task<IHttpActionResult> UpdateCurrentUser()
         {
             var identity = (ClaimsIdentity)User.Identity;
-            var user = _unitOfWork.UserRepository.GetQuery(u => u.Email == identity.Name).FirstOrDefault();
-            if (user == null) return NotFound();
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
 
-            var provider = await Request.Content.ReadAsMultipartAsync();
-            var fileContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "avatar");
-            var fullNameContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "FullName"); // ✅ viết hoa giống FE
-            var birthDateContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "BirthDate"); // ✅ viết hoa giống FE
-            var phoneContent = provider.Contents.FirstOrDefault(c => c.Headers.ContentDisposition.Name.Trim('"') == "Phone"); // nếu FE gửi phone
+            if (user == null)
+                return NotFound();
 
-            if (fullNameContent != null)
+            var httpRequest = HttpContext.Current.Request;
+
+            // Lấy dữ liệu từ form
+            var fullName = httpRequest.Form["FullName"];
+            var phone = httpRequest.Form["Phone"];
+            var birthDate = httpRequest.Form["BirthDate"];
+
+            if (!string.IsNullOrWhiteSpace(fullName))
+                user.FullName = fullName.Trim();
+
+            if (!string.IsNullOrWhiteSpace(phone))
+                user.Phone = phone.Trim();
+
+            if (DateTime.TryParse(birthDate, out var bd))
+                user.BirthDate = bd;
+
+            // Xử lý file
+            if (httpRequest.Files.Count > 0)
             {
-                var fullName = await fullNameContent.ReadAsStringAsync();
-                if (!string.IsNullOrEmpty(fullName)) user.FullName = fullName;
-            }
-
-            if (phoneContent != null)
-            {
-                var phone = await phoneContent.ReadAsStringAsync();
-                if (!string.IsNullOrEmpty(phone)) user.Phone = phone;
-            }
-
-            if (birthDateContent != null)
-            {
-                var birthDateStr = await birthDateContent.ReadAsStringAsync();
-                if (DateTime.TryParse(birthDateStr, out var bd)) user.BirthDate = bd; 
-            }
-
-            if (fileContent != null)
-            {
-                var stream = await fileContent.ReadAsStreamAsync();
-
-                var account = new Account("dzrs9sv2n", "878186467936665", "ib72xVK9wDddH4FDp1o_UGdhZMI");
-                var cloudinary = new Cloudinary(account);
-
-                var uploadParams = new ImageUploadParams()
+                var file = httpRequest.Files["avatar"]; 
+                if (file != null && file.ContentLength > 0)
                 {
-                    File = new FileDescription("avatar", stream)
-                };
-                var uploadResult = cloudinary.Upload(uploadParams);
+                    using (var stream = file.InputStream)
+                    {
+                        var account = new Account(
+                            ConfigurationManager.AppSettings["CloudinaryCloud"],
+                            ConfigurationManager.AppSettings["CloudinaryApiKey"],
+                            ConfigurationManager.AppSettings["CloudinaryApiSecret"]
+                        );
 
-                user.AvatarUrl = uploadResult.SecureUrl.ToString();
+                        var cloudinary = new Cloudinary(account);
+                        var uploadParams = new ImageUploadParams
+                        {
+                            File = new FileDescription(file.FileName, stream),
+                            Folder = "avatars",
+                            PublicId = $"user_{user.Id}_{Guid.NewGuid()}",
+                            Overwrite = true
+                        };
+
+                        var uploadResult = await cloudinary.UploadAsync(uploadParams);
+                        user.AvatarUrl = uploadResult.SecureUrl?.ToString();
+                    }
+                }
             }
 
             _unitOfWork.UserRepository.Update(user);
@@ -97,16 +109,14 @@ namespace Trello_API.Controllers
                 Message = "Cập nhật thông tin thành công",
                 User = new
                 {
-                    user.Id,
                     user.Email,
                     user.FullName,
                     user.AvatarUrl,
                     user.Phone,
-                    user.BirthDate 
+                    user.BirthDate
                 }
             });
         }
-
 
     }
 }

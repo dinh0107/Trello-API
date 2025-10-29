@@ -98,12 +98,12 @@ namespace Trello_API.Controllers
             if (user == null) return Unauthorized();
 
             var allowedBackgrounds = new List<string>
-            {
-                "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-1.jpg",
-                "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-2.jpg",
-                "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-3.webp",
-                "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-4.jpg"
-            };
+                {
+                    "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-1.jpg",
+                    "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-2.jpg",
+                    "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-3.webp",
+                    "https://res.cloudinary.com/dzrs9sv2n/image/upload/v1759303170/bg-4.jpg"
+                };
 
             string selectedBackground = allowedBackgrounds.Contains(model.BackgroundImage)
                 ? model.BackgroundImage
@@ -111,23 +111,40 @@ namespace Trello_API.Controllers
 
             var board = new Board
             {
-                Name = model.Name,
+                Name = model.Name.Trim(),
                 UserId = user.Id,
-                BackgroundImage = selectedBackground
+                BackgroundImage = selectedBackground,
             };
 
             _unitOfWork.BoardRepository.Insert(board);
             _unitOfWork.Save();
 
+            var boardUser = new BoardUser
+            {
+                BoardId = board.Id,
+                UserId = user.Id,
+                IsOwner = true
+            };
+
+            _unitOfWork.BoardUserRepository.Insert(boardUser);
+            _unitOfWork.Save();
+
             return Ok(new
             {
                 Success = true,
-                Message = "Board created successfully",
+                Message = "Tạo board thành công",
                 data = new
                 {
                     board.Id,
                     board.Name,
-                    board.BackgroundImage
+                    board.BackgroundImage,
+                    Owner = new
+                    {
+                        user.Id,
+                        user.FullName,
+                        user.Email,
+                        user.AvatarUrl
+                    }
                 }
             });
         }
@@ -145,7 +162,7 @@ namespace Trello_API.Controllers
             return Ok(existing);
         }
 
-        [HttpDelete, Route("{id:int}")]
+        [HttpDelete, Route("delete-board/{id}")]
         public IHttpActionResult DeleteBoard(int id)
         {
             var board = _unitOfWork.BoardRepository.GetById(id);
@@ -235,7 +252,7 @@ namespace Trello_API.Controllers
                 {
                     bu.UserId,
                     Email = bu.User.Email,
-                    FullName = bu.User.FullName,  
+                    FullName = bu.User.FullName,
                     AvatarUrl = bu.User.AvatarUrl,
                     bu.IsOwner
                 })
@@ -249,7 +266,7 @@ namespace Trello_API.Controllers
         [HttpPost, Route("add-user")]
         public IHttpActionResult AddUserToBoard([FromBody] AddUserToBoardRequest request)
         {
-            if (request == null)
+            if (request == null || request.UserIds == null || !request.UserIds.Any())
                 return BadRequest("Dữ liệu không hợp lệ");
 
             var identity = (ClaimsIdentity)User.Identity;
@@ -264,46 +281,58 @@ namespace Trello_API.Controllers
             if (board == null)
                 return BadRequest("Không tìm thấy board.");
 
-            var user = _unitOfWork.UserRepository.GetById(request.UserId);
-            if (user == null)
-                return BadRequest("Không tìm thấy user.");
+            var addedMembers = new List<object>();
 
-            var existing = _unitOfWork.BoardUserRepository
-                .GetQuery(bu => bu.BoardId == request.BoardId && bu.UserId == request.UserId)
-                .FirstOrDefault();
-
-            if (existing != null)
-                return BadRequest("User này đã có trong board.");
-
-            var boardUser = new BoardUser
+            foreach (var userId in request.UserIds)
             {
-                BoardId = request.BoardId,
-                UserId = request.UserId,
-                IsOwner = request.IsOwner
-            };
+                var user = _unitOfWork.UserRepository.GetById(userId);
+                if (user == null)
+                    continue;
 
-            _unitOfWork.BoardUserRepository.Insert(boardUser);
-            _unitOfWork.Save();
+                var existing = _unitOfWork.BoardUserRepository
+                    .GetQuery(bu => bu.BoardId == request.BoardId && bu.UserId == userId)
+                    .FirstOrDefault();
 
-            return Ok(new
-            {
-                Success = true,
-                Message = "Thêm user vào board thành công",
-                Member = new
+                if (existing != null)
+                    continue;
+
+                var boardUser = new BoardUser
+                {
+                    BoardId = request.BoardId,
+                    UserId = userId,
+                    IsOwner = false,
+                };
+
+                _unitOfWork.BoardUserRepository.Insert(boardUser);
+
+                addedMembers.Add(new
                 {
                     boardUser.Id,
                     boardUser.BoardId,
                     boardUser.UserId,
-                    boardUser.IsOwner,
+                    IsOwner = false,
                     User = new
                     {
                         user.Id,
                         user.FullName,
                         user.Email
                     }
-                }
+                });
+            }
+
+            _unitOfWork.Save();
+
+            if (!addedMembers.Any())
+                return BadRequest("Không có user nào được thêm (tất cả đều tồn tại hoặc không hợp lệ).");
+
+            return Ok(new
+            {
+                Success = true,
+                Message = $"Đã thêm {addedMembers.Count} user vào board thành công",
+                Members = addedMembers
             });
         }
+
 
     }
 }

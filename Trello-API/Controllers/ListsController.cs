@@ -21,24 +21,27 @@ namespace Trello_API.Controllers
         [HttpGet, Route("my")]
         public IHttpActionResult GetMyLists(int boadId)
         {
-            var identity = (ClaimsIdentity)User.Identity;
-            var user = _unitOfWork.UserRepository
-                .GetQuery(u => u.Email == identity.Name)
-                .FirstOrDefault();
-
-            if (user == null) return Unauthorized();
-
-            int userId = user.Id;
-
-            var lists = _unitOfWork.ListRepository.GetQuery(a => a.BoardId == boadId, o => o.OrderBy(a => a.Sort)).Select(a => new
+            try
             {
-                a.Id,
-                a.Title,
-                a.Sort,
-                a.Cards,
-            })
-        .ToList(); ;
-            return Ok(lists);
+                var identity = (ClaimsIdentity)User.Identity;
+                var user = _unitOfWork.UserRepository
+                    .GetQuery(u => u.Email == identity.Name)
+                    .FirstOrDefault();
+
+                if (user == null)
+                    return Unauthorized();
+
+                var lists = _unitOfWork.ListRepository
+                    .GetQuery(l => l.BoardId == boadId)
+                    .OrderBy(l => l.Sort)
+                    .ToList();
+
+                return Ok(lists);
+            }
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
         }
 
         [HttpPost, Route("create-list")]

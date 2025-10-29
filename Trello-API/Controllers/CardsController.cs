@@ -34,7 +34,7 @@ namespace Trello_API.Controllers
                 return NotFound();
             }
 
-            var maxSort = _unitOfWork.CardRepositoryRepository
+            var maxSort = _unitOfWork.CardRepository
                 .GetQuery(c => c.ListId == list.Id)
                 .Select(c => (int?)c.Sort)
                 .Max() ?? 0;
@@ -48,7 +48,7 @@ namespace Trello_API.Controllers
                 CreatedBy = user
             };
 
-            _unitOfWork.CardRepositoryRepository.Insert(card);
+            _unitOfWork.CardRepository.Insert(card);
             _unitOfWork.Save();
 
             return Ok(new
@@ -69,10 +69,26 @@ namespace Trello_API.Controllers
         [HttpGet, Route("list/{listId:int}")]
         public IHttpActionResult GetCardsByList(int listId)
         {
-            var cards = _unitOfWork.CardRepositoryRepository.GetQuery(c => c.ListId == listId, o => o.OrderBy(a => a.Sort)).ToList();
-            return Ok(cards);
-        }
+            try
+            {
+                var cards = _unitOfWork.CardRepository
+                    .GetQuery(c => c.ListId == listId, o => o.OrderBy(a => a.Sort))
+                    .Select(c => new CardDto
+                    {
+                        Id = c.Id,
+                        Title = c.Title,
+                        Sort = c.Sort,
+                        ListId = c.ListId
+                    })
+                    .ToList();
 
+                return Ok(cards);
+            }
+            catch (Exception ex)
+            {
+                return InternalServerError(ex);
+            }
+        }
 
         [HttpPut, Route("move")]
         public IHttpActionResult MoveCard([FromBody] MoveCardRequestModel request)
@@ -88,15 +104,15 @@ namespace Trello_API.Controllers
             if (user == null)
                 return Unauthorized();
 
-            var card = _unitOfWork.CardRepositoryRepository.GetById(request.CardId);
+            var card = _unitOfWork.CardRepository.GetById(request.CardId);
             if (card == null)
                 return NotFound();
 
             card.ListId = request.TargetListId;
             card.Sort = request.NewSort;
-            _unitOfWork.CardRepositoryRepository.Update(card);
+            _unitOfWork.CardRepository.Update(card);
 
-            var cardsInTarget = _unitOfWork.CardRepositoryRepository
+            var cardsInTarget = _unitOfWork.CardRepository
                 .GetQuery(c => c.ListId == request.TargetListId && c.Id != card.Id)
                 .OrderBy(c => c.Sort)
                 .ToList();
@@ -106,7 +122,7 @@ namespace Trello_API.Controllers
             {
                 if (index == request.NewSort) index++;
                 c.Sort = index;
-                _unitOfWork.CardRepositoryRepository.Update(c);
+                _unitOfWork.CardRepository.Update(c);
                 index++;
             }
 
@@ -128,22 +144,29 @@ namespace Trello_API.Controllers
         [HttpGet, Route("get-card/{id}")]
         public IHttpActionResult GetCardById(int id)
         {
-            var identity = (ClaimsIdentity)User.Identity;
-            var user = _unitOfWork.UserRepository
-                .GetQuery(u => u.Email == identity.Name)
-                .FirstOrDefault();
+            try
+            {
+                var identity = (ClaimsIdentity)User.Identity;
+                var user = _unitOfWork.UserRepository
+                    .GetQuery(u => u.Email == identity.Name)
+                    .FirstOrDefault();
 
-            if (user == null)
-                return Unauthorized();
+                if (user == null)
+                    return Unauthorized();
 
-            var card = _unitOfWork.CardRepositoryRepository.GetById(id);
-            if (card == null)
-                return NotFound();
+                var card = _unitOfWork.CardRepository.GetById(id);
+                if (card == null)
+                    return NotFound();
 
-            return Ok(card);
+                return Ok(card);
+            }
+            catch(Exception ex)
+            {
+                return InternalServerError(ex);
+            }
         }
 
-        [HttpPost, Route("delete-card/{id}")]
+        [HttpDelete, Route("delete-card/{id}")]
         public IHttpActionResult DelelteCard(int id)
         {
             var identity = (ClaimsIdentity)User.Identity;
@@ -154,11 +177,11 @@ namespace Trello_API.Controllers
             if (user == null)
                 return Unauthorized();
 
-            var card = _unitOfWork.CardRepositoryRepository.GetById(id);
+            var card = _unitOfWork.CardRepository.GetById(id);
             if (card == null)
                 return NotFound();
 
-            _unitOfWork.CardRepositoryRepository.Delete(card);
+            _unitOfWork.CardRepository.Delete(card);
             _unitOfWork.Save();
             return Ok(
                 new
@@ -223,7 +246,7 @@ namespace Trello_API.Controllers
             if (currentUser == null)
                 return Unauthorized();
 
-            var card = _unitOfWork.CardRepositoryRepository.GetById(request.CardId);
+            var card = _unitOfWork.CardRepository.GetById(request.CardId);
             if (card == null)
                 return NotFound();
 
@@ -240,7 +263,7 @@ namespace Trello_API.Controllers
                 return BadRequest("Người dùng này không nằm trong board.");
 
             card.AssigneeId = request.UserId;
-            _unitOfWork.CardRepositoryRepository.Update(card);
+            _unitOfWork.CardRepository.Update(card);
             _unitOfWork.Save();
 
             return Ok(new
