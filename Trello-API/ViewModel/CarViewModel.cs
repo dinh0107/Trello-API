@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using Trello_API.Models;
 
 namespace Trello_API.ViewModel
 {
@@ -24,6 +25,11 @@ namespace Trello_API.ViewModel
         public string Title { get; set; }
         public int Id { get; set; }
     }
+    public class ChangeStatusRequest
+    {
+        public bool Status { get; set; }
+        public int Id { get; set; }
+    }
 
     public class CreateCardRequest
     {
@@ -43,6 +49,7 @@ namespace Trello_API.ViewModel
     {
         public string Name { get; set; }
         public string BackgroundImage { get; set; }
+        public bool IsPublic { get; set; }
     }
     public class CreateListRequest
     {
@@ -73,4 +80,19 @@ namespace Trello_API.ViewModel
         public bool IsOwner { get; set; } = false;
     }
 
+    public class CardDesRequest
+    {
+        public int CardId { get; set; }
+        public string Description { get; set; }
+    }
+    public class AddUsersToCardRequest
+    {
+        public int CardId { get; set; }
+        public int UserIds { get; set; }
+    }
+    public class UsersByCardRequest
+    {
+        public int CardId { get; set; }
+        public List<User> Users { get; set; }
+    }
 }

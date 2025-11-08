@@ -20,5 +20,6 @@ namespace Trello_API.Models
         public DateTime? RefreshTokenExpiry { get; set; } 
         public ICollection<Board> Boards { get; set; }
         public virtual ICollection<BoardUser> BoardUsers { get; set; }
+        public virtual ICollection<CardUser> CardUsers { get; set; }
     }
 }

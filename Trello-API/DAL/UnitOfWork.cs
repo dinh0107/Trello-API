@@ -16,6 +16,10 @@ namespace Trello_API.DAL
         private GenericRepository<Comment> _commentRepository;
         private GenericRepository<CardStatus> _cardStatusRepository;
         private GenericRepository<BoardUser> _boardUserRepository;
+        private GenericRepository<CardUser> _cardUserRepository;
+
+        public GenericRepository<CardUser> CardUserRepository =>
+           _cardUserRepository ?? (_cardUserRepository = new GenericRepository<CardUser>(_context));
         public GenericRepository<BoardUser> BoardUserRepository =>
             _boardUserRepository ?? (_boardUserRepository = new GenericRepository<BoardUser>(_context));
         public GenericRepository<User> UserRepository =>

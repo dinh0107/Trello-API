@@ -11,10 +11,15 @@ namespace Trello_API
     {
         public static void Register(HttpConfiguration config)
         {
-            var cors = new EnableCorsAttribute("http://localhost:4200", "*", "*")
+            var origins = "http://localhost:4200,https://trello-clone-wske.vercel.app";
+            var headers = "*";
+            var methods = "*";
+
+            var cors = new EnableCorsAttribute(origins, headers, methods)
             {
                 SupportsCredentials = true
             };
+
             config.EnableCors(cors);
 
             config.MessageHandlers.Add(new JwtCookieAuthHandler());

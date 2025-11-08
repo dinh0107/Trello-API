@@ -181,6 +181,11 @@ namespace Trello_API.Controllers
                 Message = "Cập nhật thành công",
             });
         }
+        protected override void Dispose(bool disposing)
+        {
+            _unitOfWork.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
 }

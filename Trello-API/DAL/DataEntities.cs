@@ -17,5 +17,6 @@ namespace Trello_API.DAL
         public DbSet<Comment>  Comments { get; set; }
         public DbSet<CardStatus> CardStatuses { get; set; }
         public DbSet<BoardUser> BoardUsers { get; set; }
+        public DbSet<CardUser> CardUsers { get; set; }
     }
 }

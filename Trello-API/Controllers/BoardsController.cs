@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 using Trello_API.DAL;
 using Trello_API.Models;
@@ -48,24 +49,77 @@ namespace Trello_API.Controllers
             return Ok(boardDtos);
         }
 
-        [Authorize]
+        [AllowAnonymous]
         [HttpGet, Route("my/{id}")]
         public IHttpActionResult GetBoard(int id)
         {
             var board = _unitOfWork.BoardRepository.GetById(id);
-            if (board == null) return NotFound();
+
+            if (board == null)
+                return NotFound();
+
+            if (board.IsPublic)
+            {
+                return Ok(new
+                {
+                    board.Id,
+                    board.Name,
+                    board.BackgroundImage,
+                    IsPublic = board.IsPublic,
+                    Lists = board.Lists?.Select(l => new
+                    {
+                        l.Id,
+                        l.Title
+                    })
+                });
+            }
+
+            if (HttpContext.Current.User?.Identity?.IsAuthenticated != true)
+            {
+                return Content(HttpStatusCode.Unauthorized, new
+                {
+                    Success = false,
+                    Message = "Bạn cần đăng nhập để xem board này"
+                });
+            }
+
+            var email = HttpContext.Current.User.Identity.Name;
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == email)
+                .FirstOrDefault();
+
+            if (user == null)
+                return Content(HttpStatusCode.Unauthorized, new
+                {
+                    Success = false,
+                    Message = "Không xác định được người dùng"
+                });
+
+            bool isOwner = board.UserId == user.Id;
+            bool isMember = board.BoardUsers?.Any(bu => bu.UserId == user.Id) ?? false;
+
+            if (!isOwner && !isMember)
+            {
+                return Content(HttpStatusCode.Forbidden, new
+                {
+                    Success = false,
+                    Message = "Bạn không có quyền truy cập board này"
+                });
+            }
 
             var result = new
             {
                 board.Id,
                 board.Name,
                 board.BackgroundImage,
+                IsPublic = board.IsPublic,
                 Lists = board.Lists?.Select(l => new
                 {
                     l.Id,
                     l.Title
                 })
             };
+
             return Ok(result);
         }
 
@@ -113,6 +167,7 @@ namespace Trello_API.Controllers
             {
                 Name = model.Name.Trim(),
                 UserId = user.Id,
+                IsPublic = model.IsPublic,
                 BackgroundImage = selectedBackground,
             };
 
@@ -332,7 +387,11 @@ namespace Trello_API.Controllers
                 Members = addedMembers
             });
         }
-
+        protected override void Dispose(bool disposing)
+        {
+            _unitOfWork.Dispose();
+            base.Dispose(disposing);
+        }
 
     }
 }

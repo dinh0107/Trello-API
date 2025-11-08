@@ -11,6 +11,7 @@ namespace Trello_API.Models
         public string Name { get; set; }
         public int UserId { get; set; }
         public string BackgroundImage { get; set; }
+        public bool IsPublic { get; set; } = false;
         public ICollection<List> Lists { get; set; }
         public virtual User User { get; set; }
         public virtual ICollection<BoardUser> BoardUsers { get; set; }

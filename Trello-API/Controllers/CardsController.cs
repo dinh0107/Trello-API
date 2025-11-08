@@ -141,30 +141,40 @@ namespace Trello_API.Controllers
                 }
             });
         }
+
         [HttpGet, Route("get-card/{id}")]
         public IHttpActionResult GetCardById(int id)
         {
-            try
+            var identity = (ClaimsIdentity)User.Identity;
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null)
+                return Unauthorized();
+
+            var card = _unitOfWork.CardRepository.GetById(id);
+            if (card == null)
+                return NotFound();
+
+            var result = new
             {
-                var identity = (ClaimsIdentity)User.Identity;
-                var user = _unitOfWork.UserRepository
-                    .GetQuery(u => u.Email == identity.Name)
-                    .FirstOrDefault();
+                card.Id,
+                card.Title,
+                card.Description,
+                card.CreatedAt,
+                CreatedBy = new
+                {
+                    card.CreatedBy.Id,
+                    card.CreatedBy.FullName,
+                    card.CreatedBy.Email,
+                },
+                ListId = card.ListId
+            };
 
-                if (user == null)
-                    return Unauthorized();
-
-                var card = _unitOfWork.CardRepository.GetById(id);
-                if (card == null)
-                    return NotFound();
-
-                return Ok(card);
-            }
-            catch(Exception ex)
-            {
-                return InternalServerError(ex);
-            }
+            return Ok(result);
         }
+
 
         [HttpDelete, Route("delete-card/{id}")]
         public IHttpActionResult DelelteCard(int id)
@@ -232,8 +242,11 @@ namespace Trello_API.Controllers
                 }
             });
         }
-        [HttpPut, Route("add-user")]
-        public IHttpActionResult AddUserToCard([FromBody] AddUserToCardRequest request)
+      
+
+
+        [HttpPut, Route("description-card")]
+        public IHttpActionResult DescriptionCard([FromBody] CardDesRequest request)
         {
             if (request == null)
                 return BadRequest("Dữ liệu không hợp lệ");
@@ -250,35 +263,218 @@ namespace Trello_API.Controllers
             if (card == null)
                 return NotFound();
 
-            var list = _unitOfWork.ListRepository.GetById(card.ListId);
-            if (list == null)
-                return BadRequest("Không tìm thấy list chứa card.");
-
-            var boardId = list.BoardId;
-            var userInBoard = _unitOfWork.BoardUserRepository
-                .GetQuery(m => m.BoardId == boardId && m.UserId == request.UserId)
-                .FirstOrDefault();
-
-            if (userInBoard == null)
-                return BadRequest("Người dùng này không nằm trong board.");
-
-            card.AssigneeId = request.UserId;
+            card.Description = request.Description;
             _unitOfWork.CardRepository.Update(card);
+            _unitOfWork.Save();
+            return Ok(new
+            {
+                Success = true,
+                Message = "Thêm mô tả card thành công",
+                card = new 
+                {
+                    card.Description,
+                }
+            });
+        }
+
+        [HttpPost]
+        [Route("add-user")]
+        public IHttpActionResult AddUserToCard([FromBody] AddUserToCardRequest request)
+        {
+            if (request == null || request.CardId <= 0 || request.UserId <= 0)
+                return BadRequest("Dữ liệu không hợp lệ. CardId và UserId là bắt buộc.");
+
+            var card = _unitOfWork.CardRepository.GetById(request.CardId);
+            if (card == null)
+                return NotFound();
+
+            var user = _unitOfWork.UserRepository.GetById(request.UserId);
+            if (user == null)
+                return NotFound();
+
+            var exists = _unitOfWork.CardUserRepository
+                .GetQuery(cu => cu.CardId == request.CardId && cu.UserId == request.UserId)
+                .Any();
+
+            if (exists)
+                return Content(HttpStatusCode.Conflict, new
+                {
+                    Success = false,
+                    Message = "Người dùng này đã tồn tại trong card."
+                });
+
+            var cardUser = new CardUser
+            {
+                CardId = request.CardId,
+                UserId = request.UserId,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            _unitOfWork.CardUserRepository.Insert(cardUser);
             _unitOfWork.Save();
 
             return Ok(new
             {
                 Success = true,
-                Message = "Thêm user vào card thành công",
-                Card = new
+                Message = "Thêm người dùng vào card thành công",
+                Data = new
                 {
                     card.Id,
                     card.Title,
-                    card.AssigneeId,
-                    AssigneeName = _unitOfWork.UserRepository.GetById(request.UserId)?.FullName
+                    User = new
+                    {
+                        user.Id,
+                        user.FullName,
+                        user.Email,
+                        user.AvatarUrl
+                    }
                 }
             });
         }
 
+        [HttpPost]
+        [Route("remove-user")]
+        public IHttpActionResult RemoveUserToCard([FromBody] AddUserToCardRequest request)
+        {
+            if (request == null || request.CardId <= 0 || request.UserId <= 0)
+                return BadRequest("Dữ liệu không hợp lệ. CardId và UserId là bắt buộc.");
+
+            var card = _unitOfWork.CardRepository.GetById(request.CardId);
+            if (card == null)
+                return NotFound();
+
+            var user = _unitOfWork.UserRepository.GetById(request.UserId);
+            if (user == null)
+                return NotFound();
+
+            var exists = _unitOfWork.CardUserRepository
+                .GetQuery(cu => cu.CardId == request.CardId && cu.UserId == request.UserId)
+                .Any();
+
+            if (exists)
+                return Content(HttpStatusCode.Conflict, new
+                {
+                    Success = false,
+                    Message = "Người dùng này đã tồn tại trong card."
+                });
+
+            var cardUser = new CardUser
+            {
+                CardId = request.CardId,
+                UserId = request.UserId,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            _unitOfWork.CardUserRepository.Delete(cardUser);
+            _unitOfWork.Save();
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Xóa người dùng thành công",
+                Data = new
+                {
+                    card.Id,
+                    card.Title,
+                    User = new
+                    {
+                        user.Id,
+                        user.FullName,
+                        user.Email,
+                    }
+                }
+            });
+        }
+
+        [HttpGet]
+        [Route("{cardId}/users")]
+        public IHttpActionResult GetUsersByCard(int cardId)
+        {
+            var card = _unitOfWork.CardRepository.GetById(cardId);
+            if (card == null)
+                return NotFound();
+
+            var users = _unitOfWork.CardUserRepository
+                .GetQuery(cu => cu.CardId == cardId)
+                .Select(cu => cu.User)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.Email,
+                    u.AvatarUrl
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "Lấy danh sách người dùng trong card thành công",
+                Data = users
+            });
+        }
+
+        [HttpPut, Route("change-title")]
+        public IHttpActionResult ChangeTitle([FromBody] ChangeTitleRequest request)
+        {
+            if (request == null) return BadRequest("Dữ liệu không hợp lệ");
+
+            var identity = (ClaimsIdentity)User.Identity;
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
+
+            var card = _unitOfWork.CardRepository.GetById(request.Id);
+            if (card == null) return NotFound();
+
+            card.Title = request.Title;
+            _unitOfWork.Save();
+            return Ok(new
+            {
+                Success = true,
+                Message = "Cập nhật thành công",
+                Title = request.Title,
+            });
+        }
+        [HttpPut, Route("change-status")]
+        public IHttpActionResult ChangeStatus([FromBody] ChangeStatusRequest request)
+        {
+            if (request == null) return BadRequest("Dữ liệu không hợp lệ");
+
+            var identity = (ClaimsIdentity)User.Identity;
+            var user = _unitOfWork.UserRepository
+                .GetQuery(u => u.Email == identity.Name)
+                .FirstOrDefault();
+
+            if (user == null) return Unauthorized();
+
+            int userId = user.Id;
+
+            var card = _unitOfWork.CardRepository.GetById(request.Id);
+            if (card == null) return NotFound();
+
+            card.IsDone = request.Status;
+            _unitOfWork.Save();
+            return Ok(new
+            {
+                Success = true,
+                Message = "Cập nhật thành công",
+                Card = new
+                {
+                    Id = card.Id,
+                    Title = card.Title,
+                    Status = card.IsDone
+                },
+            });
+        }
+        protected override void Dispose(bool disposing)
+        {
+            _unitOfWork.Dispose();
+            base.Dispose(disposing);
+        }
     }
 }

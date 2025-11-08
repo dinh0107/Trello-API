@@ -353,6 +353,18 @@
     <Compile Include="Migrations\202510211621041_fix-card.Designer.cs">
       <DependentUpon>202510211621041_fix-card.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\202511030738343_add-usercard.cs" />
+    <Compile Include="Migrations\202511030738343_add-usercard.Designer.cs">
+      <DependentUpon>202511030738343_add-usercard.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202511070855478_status-card.cs" />
+    <Compile Include="Migrations\202511070855478_status-card.Designer.cs">
+      <DependentUpon>202511070855478_status-card.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Migrations\202511070913561_status-board.cs" />
+    <Compile Include="Migrations\202511070913561_status-board.Designer.cs">
+      <DependentUpon>202511070913561_status-board.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="Models\Board.cs" />
     <Compile Include="Models\Card.cs" />
@@ -511,6 +523,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\202510211621041_fix-card.resx">
       <DependentUpon>202510211621041_fix-card.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511030738343_add-usercard.resx">
+      <DependentUpon>202511030738343_add-usercard.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511070855478_status-card.resx">
+      <DependentUpon>202511070855478_status-card.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\202511070913561_status-board.resx">
+      <DependentUpon>202511070913561_status-board.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <PropertyGroup>

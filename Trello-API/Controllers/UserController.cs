@@ -3,6 +3,7 @@ using CloudinaryDotNet.Actions;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -42,7 +43,6 @@ namespace Trello_API.Controllers
             };
             return Ok(UserInfo);
         }
-
         [HttpPost]
         [Route("update-info")]
         public async Task<IHttpActionResult> UpdateCurrentUser()
@@ -57,46 +57,46 @@ namespace Trello_API.Controllers
 
             var httpRequest = HttpContext.Current.Request;
 
-            // Lấy dữ liệu từ form
-            var fullName = httpRequest.Form["FullName"];
-            var phone = httpRequest.Form["Phone"];
-            var birthDate = httpRequest.Form["BirthDate"];
+            var form = httpRequest.Form;
+            user.FullName = form["FullName"]?.Trim() ?? user.FullName;
+            user.Phone = form["Phone"]?.Trim() ?? user.Phone;
 
-            if (!string.IsNullOrWhiteSpace(fullName))
-                user.FullName = fullName.Trim();
+            if (DateTime.TryParse(form["BirthDate"], out var parsedDate))
+                user.BirthDate = parsedDate;
 
-            if (!string.IsNullOrWhiteSpace(phone))
-                user.Phone = phone.Trim();
-
-            if (DateTime.TryParse(birthDate, out var bd))
-                user.BirthDate = bd;
-
-            // Xử lý file
             if (httpRequest.Files.Count > 0)
             {
-                var file = httpRequest.Files["avatar"]; 
+                var file = httpRequest.Files["avatar"];
                 if (file != null && file.ContentLength > 0)
                 {
-                    using (var stream = file.InputStream)
+                    var validExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                    var fileExt = Path.GetExtension(file.FileName).ToLower();
+
+                    if (!validExtensions.Contains(fileExt))
+                        return BadRequest("Chỉ hỗ trợ ảnh .jpg, .jpeg, .png, .webp");
+
+                    var account = new Account(
+                        ConfigurationManager.AppSettings["CloudinaryCloud"],
+                        ConfigurationManager.AppSettings["CloudinaryApiKey"],
+                        ConfigurationManager.AppSettings["CloudinaryApiSecret"]
+                    );
+
+                    var cloudinary = new Cloudinary(account);
+
+                    var publicId = $"user_{user.Id}_{Guid.NewGuid()}";
+
+                    var uploadParams = new ImageUploadParams
                     {
-                        var account = new Account(
-                            ConfigurationManager.AppSettings["CloudinaryCloud"],
-                            ConfigurationManager.AppSettings["CloudinaryApiKey"],
-                            ConfigurationManager.AppSettings["CloudinaryApiSecret"]
-                        );
+                        File = new FileDescription(file.FileName, file.InputStream),
+                        Folder = "avatars",
+                        PublicId = publicId,
+                        Overwrite = true,
+                        Transformation = new Transformation()
+                            .Width(400).Height(400).Crop("fill").Gravity("face") 
+                    };
 
-                        var cloudinary = new Cloudinary(account);
-                        var uploadParams = new ImageUploadParams
-                        {
-                            File = new FileDescription(file.FileName, stream),
-                            Folder = "avatars",
-                            PublicId = $"user_{user.Id}_{Guid.NewGuid()}",
-                            Overwrite = true
-                        };
-
-                        var uploadResult = await cloudinary.UploadAsync(uploadParams);
-                        user.AvatarUrl = uploadResult.SecureUrl?.ToString();
-                    }
+                    var uploadResult = await cloudinary.UploadAsync(uploadParams);
+                    user.AvatarUrl = uploadResult.SecureUrl?.ToString();
                 }
             }
 
@@ -113,10 +113,15 @@ namespace Trello_API.Controllers
                     user.FullName,
                     user.AvatarUrl,
                     user.Phone,
-                    user.BirthDate
+                    BirthDate = user.BirthDate?.ToString("yyyy-MM-dd")
                 }
             });
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            _unitOfWork.Dispose();
+            base.Dispose(disposing);
+        }
     }
 }
