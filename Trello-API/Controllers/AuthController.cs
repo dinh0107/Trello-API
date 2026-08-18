@@ -184,6 +184,7 @@ namespace Trello_API.Controllers
             newUser.RefreshToken = refreshToken;
             newUser.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
             _unitOfWork.UserRepository.Insert(newUser);
+            _unitOfWork.Save();
             var cookie = new HttpCookie("AccessToken", accessToken)
             {
                 HttpOnly = true,
